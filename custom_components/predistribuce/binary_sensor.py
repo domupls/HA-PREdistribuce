@@ -11,7 +11,8 @@ from homeassistant.util import Throttle
 import requests
 from lxml import html, etree
 
-MIN_TIME_BETWEEN_SCANS = timedelta(seconds=15*60)  # cervena carka ukazujici aktualni cas se stahuje take.
+# cervena carka ukazujici aktualni cas se stahuje take.
+MIN_TIME_BETWEEN_SCANS = timedelta(seconds=15*60)
 _LOGGER = logging.getLogger(__name__)
 
 URL = "https:/predistribuce.cz/blabla/dd"
@@ -68,8 +69,10 @@ def setup_platform(hass, config, add_entities, discovery_info=None):
     ents = []
     ents.append(PreDistribuce(conf_cmd, 0, conf_name))
     for pre in conf_periods:
-        ents.append(PreDistribuce(conf_cmd, pre.get(CONF_MINUTES), pre.get(CONF_NAME)))
+        ents.append(PreDistribuce(conf_cmd, pre.get(
+            CONF_MINUTES), pre.get(CONF_NAME)))
     add_entities(ents)
+
 
 class PreDistribuce(BinarySensorEntity):
 
@@ -98,15 +101,17 @@ class PreDistribuce(BinarySensorEntity):
     @property
     def is_on(self):
         """Return entity state."""
-        hdoNizkyVysoky = self.tree.xpath('//div[@id="component-hdo-dnes"]/div[@class="hdo-bar"]/span[starts-with(@class, "hdo")]/@class')
-        hdoCasyCitelne = self.tree.xpath('//div[@id="component-hdo-dnes"]/div/span[@class="span-overflow"]/@title')
-        hdoNizkyVysoky = [ x[3].upper() for x in hdoNizkyVysoky ]
-        hdoCasyZacatky = [ x[0:5].upper() for x in hdoCasyCitelne ]
+        hdoNizkyVysoky = self.tree.xpath(
+            '//div[@id="component-hdo-dnes"]/div[@class="hdo-bar"]/span[starts-with(@class, "hdo")]/@class')
+        hdoCasyCitelne = self.tree.xpath(
+            '//div[@id="component-hdo-dnes"]/div/span[@class="span-overflow"]/@title')
+        hdoNizkyVysoky = [x[3].upper() for x in hdoNizkyVysoky]
+        hdoCasyZacatky = [x[0:5].upper() for x in hdoCasyCitelne]
 
         time_now = datetime.now().time()
         hdoTed = hdoNizkyVysoky[:1][0]
         idxTed = len(hdoNizkyVysoky)-1
-        for idx,t in enumerate(hdoCasyZacatky, start=0):
+        for idx, t in enumerate(hdoCasyZacatky, start=0):
             time_start = datetime.strptime(t, '%H:%M').time()
             if time_now < time_start:
                 hdoTed = hdoNizkyVysoky[idx-1]
@@ -114,7 +119,8 @@ class PreDistribuce(BinarySensorEntity):
                 break
 
         zacne = datetime.strptime(hdoCasyZacatky[idxTed], '%H:%M').time()
-        zbyvaMinut = (datetime.combine(date.today(), zacne) - datetime.combine(date.today(), time_now)).seconds / 60
+        zbyvaMinut = (datetime.combine(date.today(), zacne) -
+                      datetime.combine(date.today(), time_now)).seconds / 60
 
         if self.minutes == 0:
             if hdoTed == 'N':
@@ -124,13 +130,13 @@ class PreDistribuce(BinarySensorEntity):
         else:
             # Reflect gap in minute that low tariff need to be active
             if hdoTed == 'N':
-                #kdy zacne vysoky tarif?
+                # kdy zacne vysoky tarif?
                 if self.minutes < zbyvaMinut:
                     return True   # Currently there is low tariff and it will still be longer than we need
                 else:
                     return False   # Currently there is low tariff but not enough as we need
             else:
-                #kdy zacne nizky?
+                # kdy zacne nizky?
                 return False
 
         return None
@@ -141,6 +147,7 @@ class PreDistribuce(BinarySensorEntity):
         if self.minutes == 0:
             attributes['html_values'] = STYLES + self.html
         return attributes
+
     @property
     def should_poll(self):
         return True
@@ -159,11 +166,14 @@ class PreDistribuce(BinarySensorEntity):
     def update(self):
         """Update the entity by scraping website"""
         today = date.today()
-        page = requests.get("https://www.predistribuce.cz/cs/potrebuji-zaridit/zakaznici/stav-hdo/?povel={3}&den_od={0}&mesic_od={1}&rok_od={2}&den_do={0}&mesic_do={1}&rok_do={2}".format(today.day, today.month, today.year, self.conf_cmd))
+        page = requests.get("https://www.predistribuce.cz/cs/potrebuji-zaridit/zakaznici/stav-hdo/?povel={3}&den_od={0}&mesic_od={1}&rok_od={2}&den_do={0}&mesic_do={1}&rok_do={2}".format(
+            today.day, today.month, today.year, self.conf_cmd))
         if page.status_code == 200:
             self.tree = html.fromstring(page.content)
-            self.html = etree.tostring(self.tree.xpath('//div[@id="component-hdo-dnes"]')[0]).decode("utf-8").replace('\n', '').replace('\t', '').replace('"/>', '"></span>')
-            self.html = self.html.replace('<div class="overflow-bar"></span>', '<div class="overflow-bar"></div>')
+            self.html = etree.tostring(self.tree.xpath('//div[@id="component-hdo-dnes"]')[0]).decode(
+                "utf-8").replace('\n', '').replace('\t', '').replace('"/>', '"></span>')
+            self.html = self.html.replace(
+                '<div class="overflow-bar"></span>', '<div class="overflow-bar"></div>')
             #_LOGGER.warn("UPDATING POST {}".format(self.html))
             self.last_update_success = True
         else:
